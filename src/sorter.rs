@@ -1,4 +1,4 @@
-use std::ffi::{OsStr, OsString};
+use std::ffi::{OsStr};
 use std::fs::{create_dir_all, rename, DirEntry};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -11,20 +11,10 @@ pub fn sort(path: &Path) -> io::Result<()> {
 
     // Create missing folders
     content
-        .filter_map(|fs_entity_result| -> Option<PathBuf> {
-            let fs_entity = fs_entity_result.ok()?;
-            let filetype = fs_entity.file_type().ok()?;
-
-            // Filter for files
-            if !filetype.is_file() {
-                return None;
-            }
-
-            Some(fs_entity.path())
-        })
-        .for_each(|path| {
-            let file_name = path.to_str().unwrap_or_default();
-            match move_file(path.as_path()) {
+        .filter_map(|dir_entry| dir_entry_to_file(dir_entry))
+        .for_each(|file| {
+            let file_name = String::from(file.file_name().to_str().unwrap_or_default());
+            match move_file(&file) {
                 Ok(_) => println!("Moved File: {file_name}"),
                 Err(err) => println!("Could not move file: {file_name}\n{:?}", err),
             };
@@ -33,44 +23,46 @@ pub fn sort(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn move_file(path: &Path) -> io::Result<()> {
-    let folder_name = get_folder_by_extension(path);
-    let mut path_segments = split_path(path);
+fn dir_entry_to_file(fs_entity_result: io::Result<DirEntry>) -> Option<DirEntry> {
+    let fs_entity = fs_entity_result.ok()?;
+    if fs_entity.file_type().ok()?.is_file() {return None}
 
-    let new_directory_path_name = path_segments.join("/");
-    let mut new_directory_path = PathBuf::from(&new_directory_path_name);
+    Some(fs_entity)
+}
 
-    new_directory_path.pop();
-    new_directory_path.push(folder_name);
+fn move_file(file: &DirEntry) -> io::Result<()> {
+    let path = file.path();
 
-    if !new_directory_path.try_exists().unwrap_or(true) {
-        match create_dir_all(new_directory_path) {
-            Ok(_) => println!("Created path: {}", new_directory_path_name),
-            Err(_) => println!("Could not create: {}", new_directory_path_name),
+    let folder_name = get_extension(&path);
+    let filename = file.file_name();
+    let source_path = path.clone();
+
+    let mut path = file.path();
+
+    path.pop();
+    path.push(folder_name);
+
+    create_path_if_not_exists(&path);
+
+    path.push(filename);
+
+    rename(&source_path, &path)
+}
+
+fn create_path_if_not_exists(path: &PathBuf) {
+    if !path.try_exists().unwrap_or(true) {
+        match create_dir_all(&path) {
+            Ok(_) => println!("Created path: {:?}", path),
+            Err(_) => println!("Could not create: {:?}", path),
         }
     }
-
-    path_segments.insert(path_segments.len() - 1, folder_name);
-
-    let new_path_name = path_segments.join("/");
-    let new_path = Path::new(&new_path_name);
-
-    rename(path, new_path)
 }
 
-fn split_path(path: &Path) -> Vec<&str> {
-    let mut path_segments: Vec<&str> = path
-        .iter()
-        .map(|segment| segment.to_str().unwrap_or_default())
-        .collect();
-    path_segments
-}
-
-fn get_folder_by_extension(path: &Path) -> &str {
+fn get_extension(path: &PathBuf) -> String {
     let folder_name = path
         .extension()
         .unwrap_or(OsStr::new(DEFAULT_DIR))
         .to_str()
         .unwrap_or_default();
-    folder_name
+    String::from(folder_name)
 }
