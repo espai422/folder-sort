@@ -2,7 +2,7 @@ use std::env;
 
 #[derive(Debug)]
 pub struct Args {
-    pub path: String
+    pub path: String,
 }
 
 pub fn parse_args() -> Args {
@@ -10,7 +10,5 @@ pub fn parse_args() -> Args {
 
     let path = args.get(1).unwrap_or(&String::from("~/Downloads/")).clone();
 
-    Args {
-        path
-    }
+    Args { path }
 }

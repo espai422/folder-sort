@@ -13,4 +13,3 @@ fn main() {
 
     start(config);
 }
-
