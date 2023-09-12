@@ -164,3 +164,10 @@ mod tests {
         Ok(())
     }
 }
+
+/*
+{
+    images: [jpg, png, jpeg],
+    video: [mp4, mov, mkv]
+}
+ */
