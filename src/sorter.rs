@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::fs::{create_dir_all, rename, DirEntry};
 use std::io;
@@ -30,10 +31,20 @@ fn dir_entry_to_file(fs_entity_result: io::Result<DirEntry>) -> Option<DirEntry>
     Some(fs_entity)
 }
 
+fn gen_groups() -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    map.insert("png".to_string(), "images".to_string());
+    map.insert("jpg".to_string(), "images".to_string());
+    map.insert("jpeg".to_string(), "images".to_string());
+    return map;
+}
+
 fn move_file(file: &DirEntry) -> io::Result<()> {
     let path = file.path();
 
-    let folder_name = get_extension(&path);
+    let groups = gen_groups();
+
+    let folder_name = folder_name(&path, &groups);
     let mut filename = file.file_name();
     let str_filename = filename.to_str().unwrap_or_default();
     let source_path = path.clone();
@@ -114,6 +125,22 @@ fn get_extension(path: &PathBuf) -> String {
     String::from(folder_name)
 }
 
+fn parse_group_by(groups: HashMap<String, Vec<String>>) -> HashMap<String, String> {
+    let mut ext2folder = HashMap::new();
+    for (folder, extensions) in groups {
+        for extension in extensions {
+            ext2folder.insert(extension, folder.clone());
+        }
+    }
+
+    ext2folder
+}
+
+fn folder_name(path: &PathBuf, groups: &HashMap<String, String>) -> String {
+    let extension = get_extension(&path);
+    groups.get(&extension).unwrap_or(&extension).to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,9 +192,20 @@ mod tests {
     }
 }
 
+
+
+
+
 /*
 {
     images: [jpg, png, jpeg],
     video: [mp4, mov, mkv]
+}
+{
+    jpg: images
+    png: images
+    jpeg: images
+    mp4: video
+
 }
  */
